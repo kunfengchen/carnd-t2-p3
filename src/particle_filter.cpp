@@ -94,9 +94,29 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
-    std::random_device rd;
-	std::mt19937 gen(rd());
-	std::discrete_distribution<double> d
+    // std::random_device rd;
+	// std::mt19937 gen(rd());
+	// std::discrete_distribution<double> d
+
+	std::vector<Particle> new_particles;
+	double max_weights = 0;
+	double beta = 0.0;
+	double index = rand() % num_particles;
+
+	// Get the maximum weight
+	for (Particle p: particles) {
+		max_weights = max_weights >= p.weight? max_weights, p.weight;
+	}
+
+	for (int i=0; i<num_particles; i++) {
+		beta += rand() % (max_weights * 2.0);
+	    while beta > particles[index] {
+	     	beta -= particles[index];
+		    index = (index +1) % num_particles;
+	    };
+	    new_particles.push_back(particles[index]);
+	}
+	particles = new_particles;
 }
 
 void ParticleFilter::write(std::string filename) {
