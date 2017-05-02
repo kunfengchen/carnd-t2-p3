@@ -94,6 +94,9 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
+    std::random_device rd;
+	std::mt19937 gen(rd());
+	std::discrete_distribution<double> d
 }
 
 void ParticleFilter::write(std::string filename) {
