@@ -17,7 +17,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-    num_particles = 100;
+    num_particles = 1000;
 
 	std::default_random_engine gen;
 	std::normal_distribution<double> N_x_init(x, std[0]);
@@ -45,25 +45,27 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
 	std::default_random_engine gen;
-	for (Particle p: particles) {
-		if (fabs(yaw_rate) > 0.001) {
-			p.x = p.x + velocity/yaw_rate *
-						(sin(p.theta+yaw_rate*delta_t) - sin(p.theta));
-			p.y = p.y + velocity/yaw_rate *
-						(cos(p.theta) - cos(p.theta+yaw_rate*delta_t));
+	// for (Particle p: particles) {
+	for (int i=0; i<particles.size(); i++) {
+		std::normal_distribution<double> dist_x(particles[i].x, std_pos[0]);
+		std::normal_distribution<double> dist_y(particles[i].y, std_pos[1]);
+		std::normal_distribution<double> dist_theta(particles[i].theta, std_pos[2]);
+
+		particles[i].x = dist_x(gen);
+		particles[i].y = dist_y(gen);
+
+		if (fabs(yaw_rate) > 1e-6) {
+			particles[i].x = particles[i].x + velocity/yaw_rate *
+						(sin(particles[i].theta+yaw_rate*delta_t) - sin(particles[i].theta));
+			particles[i].y = particles[i].y + velocity/yaw_rate *
+						(cos(particles[i].theta) - cos(particles[i].theta+yaw_rate*delta_t));
+			particles[i].theta = particles[i].theta + yaw_rate*delta_t;
 		} else {  // yaw_rate is 0
-			p.x = p.x + velocity*delta_t*cos(p.theta);
-			p.y = p.y + velocity*delta_t*sin(p.theta);
+			particles[i].x = particles[i].x + velocity*delta_t*cos(particles[i].theta);
+			particles[i].y = particles[i].y + velocity*delta_t*sin(particles[i].theta);
+			particles[i].theta = dist_theta(gen);
 		}
-		p.theta = p.theta + yaw_rate*delta_t;
 
-		std::normal_distribution<double> dist_x(p.x, std_pos[0]);
-		std::normal_distribution<double> dist_y(p.y, std_pos[1]);
-		std::normal_distribution<double> dist_theta(p.theta, std_pos[2]);
-
-		p.x = dist_x(gen);
-		p.y = dist_y(gen);
-		p.theta = dist_theta(gen);
 	}
 }
 
@@ -136,7 +138,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		// Update the weights
         new_weight = 1.0;
-		for (auto trans : trans_observation) {
+		for (auto& trans : trans_observation) {
 			l_x = landmark_observation[trans.id].x;
 			l_y = landmark_observation[trans.id].y;
 
@@ -163,6 +165,7 @@ void ParticleFilter::resample() {
 	// std::discrete_distribution<double> d
 
 	std::vector<Particle> new_particles;
+	/*
 	double max_weights = 0;
 	double beta = 0.0;
 	int index = rand() % num_particles;
@@ -183,6 +186,15 @@ void ParticleFilter::resample() {
 		p.y = particles[index].y;
 		p.theta = particles[index].theta;
 	    new_particles.push_back(p);
+	}
+	*/
+
+	std::default_random_engine gen;
+	std::discrete_distribution<> dist(weights.begin(), weights.end());
+    int new_index;
+	for (int i=0; i<num_particles; i++) {
+		new_index = dist(gen);
+		new_particles.push_back(particles[new_index]);
 	}
 	particles = new_particles;
 }
