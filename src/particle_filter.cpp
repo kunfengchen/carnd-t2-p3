@@ -17,7 +17,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-    num_particles = 10;
+    num_particles = 100;
 
 	std::default_random_engine gen;
 	std::normal_distribution<double> N_x_init(x, std[0]);
@@ -78,12 +78,14 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 		double m_dist = 0.0; // track the minimum distance
 		int m_dist_id = 0; // track the minimum distance id
 
-		for (int j=0; j<predicted.size(); i++) {
+		m_dist = dist(observations[i].x, observations[i].y,
+					  predicted[0].x, predicted[0].y);
+		for (int j=1; j<predicted.size(); j++) {
 		    c_dist = dist(observations[i].x, observations[i].y,
 			              predicted[j].x, predicted[j].y);
 			if (m_dist > c_dist) {
 				m_dist = c_dist;
-				m_dist_id = predicted[j].id;
+				m_dist_id = j;
 			}
 		}
 
@@ -115,23 +117,25 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		landmark_observation[i].y = map_landmarks.landmark_list[i].y_f;
 	}
 
-	int w = 0;
-	for (auto p: particles) {
+	double new_weight = 1.0;
+	double p_x, p_y, l_x, l_y, norm_x, norm_y, new_w, denom;
+	for (int p=0; p<particles.size();p++) {
 		// translate to map coordinate
+        p_x = particles[p].x;
+		p_y = particles[p].y;
 		for (int i=0; i<observations.size(); i++) {
 			trans_observation[i].x =
-			    observations[i].x*cos(p.theta) -
-				observations[i].y*sin(p.theta) + p.x;
+			    observations[i].x*cos(particles[p].theta) -
+				observations[i].y*sin(particles[p].theta) + p_x;
 			trans_observation[i].y =
-			    observations[i].x*sin(p.theta) +
-				observations[i].y*cos(p.theta) + p.y;
+			    observations[i].x*sin(particles[p].theta) +
+				observations[i].y*cos(particles[p].theta) + p_y;
 		}
 		// Assosiate the nearest neighbors
 		dataAssociation(landmark_observation, trans_observation);
 
 		// Update the weights
-		double new_weight = 1.0;
-		double l_x, l_y, norm_x, norm_y, new_w, denom;
+        new_weight = 1.0;
 		for (auto trans : trans_observation) {
 			l_x = landmark_observation[trans.id].x;
 			l_y = landmark_observation[trans.id].y;
@@ -144,8 +148,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             new_w = denom*exp(-1*(norm_x+norm_y));
 			new_weight *= new_w;
 		}
-		p.weight = new_weight;
-		weights[w++] = new_weight;
+		particles[p].weight = new_weight;
+		weights[p]= new_weight;
 	}
 }
 
@@ -169,7 +173,7 @@ void ParticleFilter::resample() {
     }
 
 	for (int i=0; i<num_particles; i++) {
-		beta += rand() % int(max_weights * 2.0);
+		beta += (rand() % 1)*(max_weights * 2.0);
 	    while (beta > particles[index].weight) {
 	     	beta -= particles[index].weight;
 		    index = (index +1) % num_particles;
