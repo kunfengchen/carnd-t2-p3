@@ -104,6 +104,49 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account 
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	// transformed to map coordinate
+	std::vector<LandmarkObs> trans_observation(observations.size());
+	// extract map landmarks
+	std::vector<LandmarkObs> landmark_observation(map_landmarks.landmark_list.size());
+	for (int i=0; i<landmark_observation.size(); i++) {
+		landmark_observation[i].id = 0;
+		landmark_observation[i].x = map_landmarks.landmark_list[i].x_f;
+		landmark_observation[i].y = map_landmarks.landmark_list[i].y_f;
+	}
+
+	int w = 0;
+	for (auto p: particles) {
+		// translate to map coordinate
+		for (int i=0; i<observations.size(), i++) {
+			trans_observation[i].x =
+			    observations[i].x*cos(p.theta) -
+				observations[i].y*sin(p.theta) + p.x;
+			trans_observation[i].y =
+			    observations[i].x*sin(p.theta) +
+				observations[i].y*cos(p.theta) + p.y;
+		}
+		// Assosiate the nearest neighbors
+		dataAssociation(landmark_observation, trans_observation);
+
+		// Update the weights
+		double new_weight = 1.0;
+		double l_x, l_y, norm_x, norm_y, new_w, denom;
+		for (auto trans : trans_observation) {
+			l_x = landmark_observation[trans.id].x;
+			l_y = landmark_observation[trans.id].y;
+
+			denom = 1.0/(2.0*M_PI*std_landmark[0]*std_landmark[1]);
+            norm_x = ((trans.x-l_x)(trans.x-l_x)) /
+					(2*std_landmark[0]*std_landmark[0]);
+			norm_y = ((trans.y-l_y)(trans.y-l_y)) /
+					(2*std_landmark[1]*std_landmark[1]);
+            new_w = denom*exp(-1*(norm_x+norm_y));
+			new_weight *= new_w;
+		}
+		p.weight = new_weight;
+		weights[w++] = new_weight;
+	}
 }
 
 void ParticleFilter::resample() {
@@ -131,7 +174,11 @@ void ParticleFilter::resample() {
 	     	beta -= particles[index];
 		    index = (index +1) % num_particles;
 	    };
-	    new_particles.push_back(particles[index]);
+		Particle p;
+		p.x = particles[index].x;
+		p.y = particles[index].y;
+		p.theta = particles[index].theta;
+	    new_particles.push_back(p);
 	}
 	particles = new_particles;
 }
