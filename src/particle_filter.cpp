@@ -13,11 +13,11 @@
 #include "particle_filter.h"
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
-	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
+	// DONE: Set the number of particles. Initialize all particles to first position (based on estimates of
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-    num_particles = 100;
+    num_particles = 10;
 
 	std::default_random_engine gen;
 	std::normal_distribution<double> N_x_init(x, std[0]);
@@ -34,11 +34,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         particles.push_back(p);
 	}
 
+	weights.resize(num_particles);
     is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
-	// TODO: Add measurements to each particle and add random Gaussian noise.
+	// DONE: Add measurements to each particle and add random Gaussian noise.
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
@@ -57,8 +58,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		p.theta = p.theta + yaw_rate*delta_t;
 
 		std::normal_distribution<double> dist_x(p.x, std_pos[0]);
-		std::normal_distribution<double> dist_y(p.y, std_pos[0]);
-		std::normal_distribution<double> dist_theta(p.theta, std_pos[0]);
+		std::normal_distribution<double> dist_y(p.y, std_pos[1]);
+		std::normal_distribution<double> dist_theta(p.theta, std_pos[2]);
 
 		p.x = dist_x(gen);
 		p.y = dist_y(gen);
@@ -67,11 +68,27 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
-	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
+	// DONE: Find the predicted measurement that is closest to each observed measurement and assign the
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
+    for (int i=0; i<observations.size()) {
+		double c_dist = 0.0; // the current distance
+		double m_dist = 0.0; // track the minimum distance
+		int m_dist_id = 0; // track the minimum distance id
+
+		for (int j=0; j<predicted.size()) {
+		    c_dist = dist(observations[i].x, observations[i].y,
+			              predicted[j].x, predicted[j].y);
+			if (m_dist > c_dist) {
+				m_dist = c_dist;
+				m_dist_id = predicted[j].id;
+			}
+		}
+
+		observations[i].id = m_dist_id;
+	}
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -90,7 +107,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 }
 
 void ParticleFilter::resample() {
-	// TODO: Resample particles with replacement with probability proportional to their weight. 
+	// DONE: Resample particles with replacement with probability proportional to their weight.
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
@@ -104,10 +121,10 @@ void ParticleFilter::resample() {
 	double index = rand() % num_particles;
 
 	// Get the maximum weight
-	for (Particle p: particles) {
-		max_weights = max_weights >= p.weight? max_weights, p.weight;
-	}
-
+	// for (Particle p: particles) {
+	// 	max_weights = max_weights >= p.weight? max_weights, p.weight;
+    // 	}
+	max_weights = std::max_element(weights.begin(), weights.end());
 	for (int i=0; i<num_particles; i++) {
 		beta += rand() % (max_weights * 2.0);
 	    while beta > particles[index] {
