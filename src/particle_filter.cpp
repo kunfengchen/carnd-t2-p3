@@ -73,12 +73,12 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
-    for (int i=0; i<observations.size()) {
+    for (int i=0; i<observations.size(); i++) {
 		double c_dist = 0.0; // the current distance
 		double m_dist = 0.0; // track the minimum distance
 		int m_dist_id = 0; // track the minimum distance id
 
-		for (int j=0; j<predicted.size()) {
+		for (int j=0; j<predicted.size(); i++) {
 		    c_dist = dist(observations[i].x, observations[i].y,
 			              predicted[j].x, predicted[j].y);
 			if (m_dist > c_dist) {
@@ -118,7 +118,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	int w = 0;
 	for (auto p: particles) {
 		// translate to map coordinate
-		for (int i=0; i<observations.size(), i++) {
+		for (int i=0; i<observations.size(); i++) {
 			trans_observation[i].x =
 			    observations[i].x*cos(p.theta) -
 				observations[i].y*sin(p.theta) + p.x;
@@ -137,9 +137,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			l_y = landmark_observation[trans.id].y;
 
 			denom = 1.0/(2.0*M_PI*std_landmark[0]*std_landmark[1]);
-            norm_x = ((trans.x-l_x)(trans.x-l_x)) /
+            norm_x = ((trans.x-l_x)*(trans.x-l_x)) /
 					(2*std_landmark[0]*std_landmark[0]);
-			norm_y = ((trans.y-l_y)(trans.y-l_y)) /
+			norm_y = ((trans.y-l_y)*(trans.y-l_y)) /
 					(2*std_landmark[1]*std_landmark[1]);
             new_w = denom*exp(-1*(norm_x+norm_y));
 			new_weight *= new_w;
@@ -161,17 +161,17 @@ void ParticleFilter::resample() {
 	std::vector<Particle> new_particles;
 	double max_weights = 0;
 	double beta = 0.0;
-	double index = rand() % num_particles;
+	int index = rand() % num_particles;
 
 	// Get the maximum weight
-	// for (Particle p: particles) {
-	// 	max_weights = max_weights >= p.weight? max_weights, p.weight;
-    // 	}
-	max_weights = std::max_element(weights.begin(), weights.end());
+	for (Particle p: particles) {
+	    max_weights = max_weights >= p.weight? max_weights:p.weight;
+    }
+
 	for (int i=0; i<num_particles; i++) {
-		beta += rand() % (max_weights * 2.0);
-	    while beta > particles[index] {
-	     	beta -= particles[index];
+		beta += rand() % int(max_weights * 2.0);
+	    while (beta > particles[index].weight) {
+	     	beta -= particles[index].weight;
 		    index = (index +1) % num_particles;
 	    };
 		Particle p;
